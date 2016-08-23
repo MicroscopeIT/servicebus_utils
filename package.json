@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "author": "Michał Cieślak",
   "license": "UNLICENSED",
-  "private": true,
+  "private": false,
   "description": "Simple utils to interact with Azure Service Bus using Node.js and ZMQ",
   "main": "servicebus-utils",
   "scripts": {
