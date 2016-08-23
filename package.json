@@ -1,0 +1,25 @@
+{
+  "name": "servicebus_utils",
+  "version": "0.0.1",
+  "author": "Michał Cieślak",
+  "license": "UNLICENSED",
+  "private": true,
+  "description": "Simple utils to interact with Azure Service Bus using Node.js and ZMQ",
+  "main": "servicebus-utils",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "keywords": [
+    "azure",
+    "servicebus",
+  ],
+  "dependencies": {
+    "azure-sb": "^0.10.3",
+    "chai": "^3.5.0",
+    "moment": "^2.14.1",
+  }
+}
