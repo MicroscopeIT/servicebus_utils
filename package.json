@@ -15,11 +15,11 @@
   },
   "keywords": [
     "azure",
-    "servicebus",
+    "servicebus"
   ],
   "dependencies": {
     "azure-sb": "^0.10.3",
     "chai": "^3.5.0",
-    "moment": "^2.14.1",
+    "moment": "^2.14.1"
   }
 }
