@@ -193,6 +193,32 @@ describe('Service bus', function() {
 
             assert.isNull(err)
             assert.isOk(_.isEqual(toSend, msg))
+            checkMessageCount(1, () =>{
+
+              servicebus.deleteMessage(handler, (err) => {
+
+                assert.isNull(err)
+                checkMessageCount(0, done)
+              })
+            })
+          })
+        })
+      })
+    })
+
+    it('should try lock message with timeout', function(done) {
+
+      var toSend = { msg: 'msg' }
+
+      servicebus.sendMessage(queueName, toSend, (err) => {
+
+        assert.isNull(err)
+        checkMessageCount(1, () => {
+
+          servicebus.tryLockMessage(queueName, 5, (err, msg, handler) => {
+
+            assert.isNull(err)
+            assert.isOk(_.isEqual(toSend, msg))
             checkMessageCount(1, () =>{ 
 
               servicebus.deleteMessage(handler, (err) => {
@@ -202,6 +228,23 @@ describe('Service bus', function() {
               })
             })
           })
+        })
+      })
+    })
+
+    it('should try lock message with timeout from empty queue', function(done) {
+
+      this.timeout(6000)
+
+      checkMessageCount(0, () => {
+
+        servicebus.tryLockMessage(queueName, 4, (err, msg, handler) => {
+
+          assert.isNull(err)
+          assert.isNull(msg)
+          assert.isNull(handler)
+
+          done()
         })
       })
     })

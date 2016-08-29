@@ -23,6 +23,8 @@ module.exports = {
   sendMessage: sendMessage,
   lockBrokeredMessage: lockBrokeredMessage,
   lockMessage: lockMessage,
+  tryLockBrokeredMessage: tryLockBrokeredMessage,
+  tryLockMessage: tryLockMessage,
   renewLock: renewLock,
   deleteMessage: deleteMessage,
   purge: purge,
@@ -186,6 +188,75 @@ function lockBrokeredMessage(queueName, cb) {
   }
 
   receive()
+}
+
+
+/**
+* Receives message (only body is returned via cb) in a peek-lock mode.
+* If queue is empty and given timeout is exceeded no error is issued,
+* msg and msgHandler are null
+*
+* @param {string} queueName                    Name of the queue.
+* @param {int}                                 The timeout interval, in seconds,
+*                                              to use for the request.
+* @param {Function(err, msg, msgHandler)} cb   `err` will contain information
+*                                              if an error occurs
+*                                              `msg` contains body of the
+*                                              message
+*                                              `msgHandler` can be used to
+*                                              delete message or renew lock
+* @return {undefined}
+*/
+function tryLockMessage(queueName, timeoutInSeconds, cb) {
+
+  tryLockBrokeredMessage(queueName, timeoutInSeconds,
+      function(err, fullMsg, msgHandler) {
+
+    if(!err && fullMsg) {
+
+      var msg = JSON.parse(fullMsg.body)
+      cb(err, msg, msgHandler)
+
+    } else {
+      cb(sanitizeServiceBusError(err), null, null)
+    }
+  });
+}
+
+
+/**
+* Receives full message in a peek-lock mode. If given timeout is exceeded,
+* no error is returned, msg and handler are null.
+*
+* @param {string} queueName                    Name of the queue.
+* @param {int}                                 The timeout interval, in seconds,
+*                                              to use for the request.
+* @param {Function(err, msg, msgHandler)} cb   `err` will contain information
+*                                              if an error occurs
+*                                              `msg` contains full message
+*                                              `msgHandler` can be used to
+*                                              delete message or renew lock
+* @return {undefined}
+*/
+function tryLockBrokeredMessage(queueName, timeoutInSeconds, cb) {
+
+  var options = {
+    isPeekLock: true,
+    timeoutIntervalInS: timeoutInSeconds
+  }
+
+  sbs.receiveQueueMessage(queueName, options, function(err, fullMsg) {
+
+    if(!err) {
+      cb(err, fullMsg, fullMsg.location)
+    } else {
+      if(err === 'No messages to receive') {
+        cb(null, null, null)
+      } else {
+        cb(sanitizeServiceBusError(err))
+      }
+    }
+  });
 }
 
 /**
