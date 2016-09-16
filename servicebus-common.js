@@ -1,5 +1,5 @@
-var moment = require('moment')
-var _ = require('underscore')
+const moment = require('moment')
+const _ = require('underscore')
 
 module.exports = {
   sanitizeServiceBusError: sanitizeServiceBusError,

@@ -1,9 +1,16 @@
-var servicebus = require('../servicebus-queues')
-var assert = require('chai').assert
-var _ = require('underscore')
+const sb = require('../servicebus-utils')
+const assert = require('chai').assert
+const _ = require('underscore')
 
-var queueName = 'unittestq'
-var lockTimeInSeconds = 4
+const queueName = 'unittestq'
+const lockTimeInSeconds = 4
+
+const connectionStr = process.env.SERVICEBUS_CONN_STR
+
+if(!connectionStr)
+  throw 'Connection string not provided. Define SERVICEBUS_CONN_STR env variable.'
+
+const servicebus = sb.createQueueServiceBus(connectionStr)
 
 function checkMessageCount(size, cb) {
 
@@ -16,12 +23,26 @@ function checkMessageCount(size, cb) {
   })
 }
 
+function removeMessage(expectedCount, cb) {
+
+  servicebus.lockBrokeredMessage(queueName, (err, msg, handler) => {
+
+    assert.isNull(err)
+
+    servicebus.deleteMessage(handler, (err) => {
+
+      assert.isNull(err)
+      checkMessageCount(expectedCount, cb)
+    })
+  })
+}
+
 describe('Service bus', function() {
 
   before(function(done) {
 
     var options = {
-      LockDuration: servicebus.durationToIsoString(lockTimeInSeconds)
+      LockDuration: sb.durationToIsoString(lockTimeInSeconds)
     }
 
     servicebus.createQueueIfNotExists(queueName, options, function(err, result, response) {
@@ -105,7 +126,10 @@ describe('Service bus', function() {
         }
 
         assert.equal(err, null)
-        checkMessageCount(1, done)
+        checkMessageCount(1, (err) => {
+          removeMessage(0, done)
+        })
+
     	})
     })
 
@@ -124,7 +148,11 @@ describe('Service bus', function() {
         }
 
         assert.equal(err, null)
-        checkMessageCount(1, done)
+
+        checkMessageCount(1, (err) => {
+          removeMessage(0, done)
+        })
+
       })
     })
 
@@ -154,7 +182,7 @@ describe('Service bus', function() {
     })
 
 
-    it.skip('should try to send message to not existing queue', function(done) {
+    it('should try to send message to not existing queue', function(done) {
 
       var msg = {
         body: JSON.stringify({ key1: 'val1', key2: 'val2' })
@@ -169,15 +197,41 @@ describe('Service bus', function() {
 
   describe('lockMessage', function() {
 
-    it.skip('should try to lock message from empty queue', function(done) {
+    it('should try to lock message from empty queue', function(done) {
 
       this.timeout(70000)
 
-      servicebus.lockMessage(queueName, (err) => {
-        assert(false)
+      let messageSent = false
+
+      servicebus.lockMessage(queueName, (err, msg, handler) => {
+
+        assert.isNull(err)
+
+        if(!messageSent) {
+
+          assert(false)
+
+        } else {
+
+          servicebus.deleteMessage(handler, (err) => {
+
+            assert.isNull(err)
+            checkMessageCount(0, done)
+          })
+        }
       })
 
-      setTimeout(done, 65000)
+      setTimeout(() => {
+
+        var toSend = { msg: 'msg' }
+
+        servicebus.sendMessage(queueName, toSend, (err) => {
+
+          assert.isNull(err)
+          messageSent = true
+        })
+
+      }, 65000)
     })
 
     it('should lock message and delete', function(done) {
@@ -249,28 +303,28 @@ describe('Service bus', function() {
       })
     })
 
-    it.skip('should lock message and try to lock the next one', function(done) {
+    // it('should lock message and try to lock the next one', function(done) {
 
-      var toSend = { msg: 'msg' }
+    //   var toSend = { msg: 'msg' }
 
-      servicebus.sendMessage(queueName, toSend, (err) => {
+    //   servicebus.sendMessage(queueName, toSend, (err) => {
 
-        assert.isNull(err)
-        checkMessageCount(1, () => {
+    //     assert.isNull(err)
+    //     checkMessageCount(1, () => {
 
-          servicebus.lockMessage(queueName, (err, msg, handler) => {
+    //       servicebus.lockMessage(queueName, (err, msg, handler) => {
 
-            servicebus.lockMessage(queueName, (err, msg, handler) => {
-              assert.isOk(false)
-            })
+    //         servicebus.lockMessage(queueName, (err, msg, handler) => {
+    //           assert.isOk(false) // it has a side effect in the next test!
+    //         })
 
-            setTimeout(done, 1000)
-          })
-        })
-      })
-    })
+    //         setTimeout(done, 1000)
+    //       })
+    //     })
+    //   })
+    // })
 
-    it.skip('should lock message, wait for expiration and lock again', function(done) {
+    it('should lock message, wait for expiration and lock again', function(done) {
 
       var testThis = this
 
@@ -280,7 +334,7 @@ describe('Service bus', function() {
 
         assert.isNull(err)
 
-        var lock = servicebus.getLockDurationInSeconds(result)
+        var lock = sb.getLockDurationInSeconds(result)
 
         assert.isNumber(lock)
         testThis.timeout((lock + 3) * 1000)
@@ -291,13 +345,22 @@ describe('Service bus', function() {
 
           servicebus.lockMessage(queueName, (err, msg, handler) => {
 
+            assert.isNull(err)
+            assert.isNotNull(msg)
+
             setTimeout(function() {
 
             }, (lock + 1) * 1000)
 
             servicebus.lockMessage(queueName, (err, msg, handler) => {
               assert.isNull(err)
-              done()
+              assert.isNotNull(msg)
+              //done()
+
+              servicebus.deleteMessage(handler, (err) => {
+                assert.isNull(err)
+                checkMessageCount(0, done)
+              })
             })
           })
         })
